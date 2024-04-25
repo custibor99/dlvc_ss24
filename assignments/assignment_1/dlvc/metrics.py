@@ -65,7 +65,7 @@ class Accuracy(PerformanceMeasure):
 
         self.n += len(target)
         prediction = torch.argmax(prediction, 1, keepdim=True)
-        is_correct = prediction == target
+        is_correct = prediction.view(-1) == target
         self.n_correct += sum(is_correct).item()
         for c in self.classes_counts.keys():
             indx = target == c
