@@ -4,9 +4,26 @@ import torch.nn.functional as F
 import torch
 
 
+def convolution_block(fan_in: int, fa_out: int, kernel: int, padding, stride: int):
+    block = nn.Sequential(
+        nn.Conv2d(fan_in, fa_out, kernel, stride, padding),
+        nn.ReLU(),
+        nn.MaxPool2d(2, 2)
+    )
+    return block
 
 
-class YourCNN(nn.Module):
+def normalized_convolution_block(fan_in: int, fa_out: int, kernel: int, padding, stride: int):
+    block = nn.Sequential(
+        nn.Conv2d(fan_in, fa_out, kernel, stride, padding, bias=False),
+        nn.BatchNorm2d(fa_out),
+        nn.ReLU(),
+        nn.MaxPool2d(2, 2)
+    )
+    return block
+
+
+class SimpleCNN(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
@@ -25,4 +42,46 @@ class YourCNN(nn.Module):
         x = self.fc3(x)
         return x
 
-    
+
+class DeepCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = convolution_block(3, 16, 5, 2, 1)
+        self.conv2 = convolution_block(16, 32, 3, 1, 1)
+        self.conv3 = convolution_block(32, 64, 3, 1, 1)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, 10)
+        self.flatten = nn.Flatten()
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.flatten(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        return x
+
+
+class DeepNormalizedCNN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = normalized_convolution_block(3, 16, 5, 2, 1)
+        self.conv2 = normalized_convolution_block(16, 32, 3, 1, 1)
+        self.conv3 = normalized_convolution_block(32, 64, 3, 1, 1)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, 10)
+        self.flatten = nn.Flatten()
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        x = self.flatten(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        return x
