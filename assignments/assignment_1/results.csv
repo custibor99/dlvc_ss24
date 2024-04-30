@@ -1,0 +1,8 @@
+model,test_accuracy,per_class_accuracy
+VisionTransformerShallow,0.2711,0.2710999995470047
+VisionTransformerDeep,0.1,0.1
+VisionTransformerDeepResidual,0.3506,0.3506000027060508
+SimpleCNN,0.361,0.3609999984502792
+DeepCNN,0.462,0.4620000094175339
+DeepNormalizedCNN,0.539,0.5390000015497207
+ResNet,0.5394,0.5394000023603439
