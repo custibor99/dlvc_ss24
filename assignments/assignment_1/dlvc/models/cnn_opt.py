@@ -23,9 +23,9 @@ def normalized_convolution_block(fan_in: int, fa_out: int, kernel: int, padding,
     return block
 
     
-class SimpleCNNOpt(nn.Module):
+class SimpleCNNTuneOpt(nn.Module):
     def __init__(self, conv_filters, fc_neurons, activation_func, dropout_rate):
-        super(SimpleCNNOpt, self).__init__()
+        super(SimpleCNNTuneOpt, self).__init__()
         self.activation = activation_func
         self.dropout_rate = dropout_rate
 
@@ -57,7 +57,7 @@ class SimpleCNNOpt(nn.Module):
         x = self.fcs[-1](x)
         return x
 
-class SimpleCNNBaseOpt(nn.Module):
+class SimpleCNNOpt(nn.Module):
     def __init__(self, dropout_rate=0.5):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
