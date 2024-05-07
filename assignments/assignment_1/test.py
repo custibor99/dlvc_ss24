@@ -1,54 +1,77 @@
-## Feel free to change the imports according to your implementation and needs
 import argparse
-import os
-import torch
+import torch 
 import torchvision.transforms.v2 as v2
-import os
-
-from torchvision.models import resnet18 # change to the model you want to test
-from dlvc.models.class_model import DeepClassifier
-from dlvc.metrics import Accuracy
-from dlvc.datasets.cifar10 import CIFAR10Dataset
-from dlvc.datasets.dataset import Subset
-
-
+import torchvision.models as models
+from dlvc.models.vit import VisionTransformerShallow as VTS, VisionTransformerDeep as VTD, VisionTransformerDeepResidual as VTDR
+from dlvc.models.cnn import SimpleCNN as SCNN, DeepCNN as DCNN, DeepNormalizedCNN as DNCNN
+from dlvc.models.vit_opt import VisionTransformerShallow as VTS_opt, VisionTransformerDeep as VTD_opt, VisionTransformerDeepResidual as VTDR_opt
+from dlvc.models.cnn_opt import SimpleCNN as SCNN_opt, DeepCNN as DCNN_opt, DeepNormalizedCNN as DNCNN_opt
+from dlvc.models.resnet18_opt import ResNet18opt as RN18_opt
+from dlvc.evaluation import cifar_load, test_model
 
 
-def test(args):
-   
-    
-    transform = v2.Compose([v2.ToImage(), 
-                            v2.ToDtype(torch.float32, scale=True),
-                            v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])])
-    
-    test_data = CIFAR10Dataset(...)
-    test_data_loader = ...
         
-    device = ...
-    num_test_data = len(test_data)
+transform_train = v2.Compose([
+    v2.ToImage(), 
+    v2.RandomHorizontalFlip(),
+    v2.RandomCrop(32, padding=4),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])
+])
 
-    model = DeepClassifier(...)
-    model.load(args.path_to_trained_model)
-    model.to(device)
+transform_val = v2.Compose([
+    v2.ToImage(),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])
+])
 
-    loss_fn = torch.nn.CrossEntropyLoss()
+train_data_opt, val_data_opt, test_data_opt = cifar_load(transform_train, transform_val)
+
+
+def main(model, name):
+
+    model, test_metric = test_model(model, name, test_data_opt)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Test a model on CIFAR-10')
+    parser.add_argument('--model', type=str, required=True, help='Model to train (VTS, VTD, VTDR, VTS_opt, VTD_opt, VTDR_opt, SCNN, DCNN, DNCNN, SCNN_opt, DCNN_opt, DNCNN_opt, ResNet18, ResNet18opt)')
+    parser.add_argument('--name', type=str, required=True, help='Name of the model to save')
+    args = parser.parse_args()
+
+    if args.model == 'VTS':
+        model = VTS()
+    elif args.model == 'VTD':
+        model = VTD()
+    elif args.model == 'VTDR':
+        model = VTDR()
+    elif args.model == 'VTS_opt':
+        model = VTS_opt()
+    elif args.model == 'VTD_opt':
+        model = VTD_opt()
+    elif args.model == 'VTDR_opt':
+        model = VTDR_opt()
+    elif args.model == 'SCNN':
+        model = SCNN()
+    elif args.model == 'DCNN':
+        model = DCNN()
+    elif args.model == 'DNCNN':
+        model = DNCNN()
+    elif args.model == 'SCNN_opt':
+        model = SCNN_opt()
+    elif args.model == 'DCNN_opt':
+        model = DCNN_opt()
+    elif args.model == 'DNCNN_opt':
+        model = DNCNN_opt()
+    elif args.model == 'RN18':
+        model = models.resnet18()
+    elif args.model == 'RN18_opt':
+        model = RN18_opt()
+    else:
+        raise ValueError(f'Unknown model: {args.model}')
     
-    test_metric = Accuracy(classes=test_data.classes)
 
-    ### Below implement testing loop and print final loss 
-    ### and metrics to terminal after testing is finished
-    # ...
+    main(model, args.name)
 
-if __name__ == "__main__":
-    ## Feel free to change this part - you do not have to use this argparse and gpu handling
-    args = argparse.ArgumentParser(description='Training')
-    args.add_argument('-d', '--gpu_id', default='5', type=str,
-                      help='index of which GPU to use')
-    
-    if not isinstance(args, tuple):
-        args = args.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
-    args.gpu_id = 0 
-    args.path_to_trained_model = "/your_path/ResNet_model_best.pth"
-
-    test(args)
+# Run the script
+# python test.py --model RN18_opt --name RN18_opt

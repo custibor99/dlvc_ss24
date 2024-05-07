@@ -69,7 +69,7 @@ class FeedForward(nn.Module):
         return self.layer(x)
 
 
-class VisionTransformerShallowOpt(torch.nn.Module):
+class VisionTransformerShallow(torch.nn.Module):
     def __init__(self, dropout_rate=0.5, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.channels = channels
@@ -104,7 +104,7 @@ class VisionTransformerShallowOpt(torch.nn.Module):
         return x
 
 
-class VisionTransformerDeepOpt(torch.nn.Module):
+class VisionTransformerDeep(torch.nn.Module):
     def __init__(self, dropout_rate=0.5, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.channels = channels
@@ -144,7 +144,7 @@ class VisionTransformerDeepOpt(torch.nn.Module):
         return x
 
 
-class VisionTransformerDeepResidualOpt(torch.nn.Module):
+class VisionTransformerDeepResidual(torch.nn.Module):
     def __init__(self, dropout_rate=0.5, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.channels = channels
