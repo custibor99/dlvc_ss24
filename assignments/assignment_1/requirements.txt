@@ -4,3 +4,4 @@ tqdm
 wandb
 matplotlib
 numpy
+tabulate

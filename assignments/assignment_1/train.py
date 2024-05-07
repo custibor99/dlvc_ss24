@@ -1,86 +1,95 @@
-## Feel free to change the imports according to your implementation and needs
+import time
 import argparse
-import os
-import torch
+import torch 
 import torchvision.transforms.v2 as v2
-from pathlib import Path
-import os
+from torch import optim
+import torchvision.models as models
+from dlvc.models.vit import VisionTransformerShallow as VTS, VisionTransformerDeep as VTD, VisionTransformerDeepResidual as VTDR
+from dlvc.models.cnn import SimpleCNN as SCNN, DeepCNN as DCNN, DeepNormalizedCNN as DNCNN
+from dlvc.evaluation import cifar_load, train_model_opt, save_metrics, plot_metrics, comparison
 
-from dlvc.models.class_model import DeepClassifier # etc. change to your model
-from dlvc.metrics import Accuracy
-from dlvc.trainer import ImgClassificationTrainer
-from dlvc.datasets.cifar10 import CIFAR10Dataset
-from dlvc.datasets.dataset import Subset
+# filter warnings
+import warnings
+warnings.filterwarnings('ignore')
 
+dropout_rate = 0.5
 
+weight_decay = 0.0001
 
+lr_rate = 0.001
 
-
-def train(args):
-
-    ### Implement this function so that it trains a specific model as described in the instruction.md file
-    ## feel free to change the code snippets given here, they are just to give you an initial structure 
-    ## but do not have to be used if you want to do it differently
-    ## For device handling you can take a look at pytorch documentation
-    
-    
-    train_transform = v2.Compose([v2.ToImage(), 
-                            v2.ToDtype(torch.float32, scale=True),
-                            v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])])
-    
-    val_transform = v2.Compose([v2.ToImage(), 
-                            v2.ToDtype(torch.float32, scale=True),
-                            v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])])
-    
-    
-    train_data = ...
-    
-    val_data = ...
-    
- 
         
-    device = ... 
+transform_train = v2.Compose([
+    v2.ToImage(), 
+    v2.RandomHorizontalFlip(),
+    v2.RandomCrop(32, padding=4),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])
+])
 
-    model = DeepClassifier(...)
-    model.to(device)
-    optimizer = ...
-    loss_fn = torch.nn.CrossEntropyLoss()
+transform_val = v2.Compose([
+    v2.ToImage(),
+    v2.ToDtype(torch.float32, scale=True),
+    v2.Normalize(mean = [0.485, 0.456,0.406], std = [0.229, 0.224, 0.225])
+])
+
+train_data_opt, val_data_opt, test_data_opt = cifar_load(transform_train, transform_val)
+
+
+def main(model, name):
+
+    optimizer = optim.Adam(model.parameters(), lr=lr_rate, weight_decay=weight_decay)
+
+    if model == SCNN() or model == DCNN() or model == DNCNN():
     
-    train_metric = Accuracy(classes=train_data.classes)
-    val_metric = Accuracy(classes=val_data.classes)
-    val_frequency = 5
+        print(f'\nTraining model with hyperparameters: dropout_rate={dropout_rate}, weight_decay={weight_decay} and learning_rate={lr_rate}')
+    else:
+        print(f'\nTraining model with hyperparameters: dropout_rate={dropout_rate}, weight_decay={weight_decay} and learning_rate={lr_rate}')
 
-    model_save_dir = Path("saved_models")
-    model_save_dir.mkdir(exist_ok=True)
+    trainer = train_model_opt(model, optimizer, name, train_data_opt, val_data_opt)
 
-    lr_scheduler = ...
-    
-    trainer = ImgClassificationTrainer(model, 
-                    optimizer,
-                    loss_fn,
-                    lr_scheduler,
-                    train_metric,
-                    val_metric,
-                    train_data,
-                    val_data,
-                    device,
-                    args.num_epochs, 
-                    model_save_dir,
-                    batch_size=128, # feel free to change
-                    val_frequency = val_frequency)
+    start_time = time.time()
+
     trainer.train()
 
+    end_time = time.time()
 
-if __name__ == "__main__":
-    ## Feel free to change this part - you do not have to use this argparse and gpu handling
-    args = argparse.ArgumentParser(description='Training')
-    args.add_argument('-d', '--gpu_id', default='0', type=str,
-                      help='index of which GPU to use')
+    training_time = end_time - start_time
+
+    print(f"\nTraining time: {training_time} seconds")
+
+    save_metrics(trainer, name, training_time)
+
+    plot_metrics(trainer, name)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Train a CNN model on CIFAR-10')
+    # model and name argument
+    parser.add_argument('--model', type=str, required=True, default='SimpleCNN', help='Model to train (SCNN, DCNN, DNCNN, VTS, VTD, VTDR, RN18)')
+    parser.add_argument('--name', type=str, required=True, default='SimpleCNN', help='Name of the model to save')
+
+    args = parser.parse_args()
+
+    if args.model == 'SCNN':
+        model = SCNN(dropout_rate)
+    elif args.model == 'DCNN':
+        model = DCNN(dropout_rate)
+    elif args.model == 'DNCNN':
+        model = DNCNN(dropout_rate)
+    elif args.model == 'VTS':
+        model = VTS(dropout_rate)
+    elif args.model == 'VTD':
+        model = VTD(dropout_rate)
+    elif args.model == 'VTDR':
+        model = VTDR(dropout_rate)
+    elif args.model == 'RN18':
+        model = models.resnet18()
+    else:
+        raise ValueError(f'Unknown model: {args.model}')
     
-    if not isinstance(args, tuple):
-        args = args.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
-    args.gpu_id = 0 
-    args.num_epochs = 30
 
-    train(args)
+    main(model, args.name)
+
+
+# Run the script
+# python train.py --model SCNN --name SCNN

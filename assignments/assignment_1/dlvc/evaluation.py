@@ -1,5 +1,8 @@
+import ast
+import time
 import numpy as np
 import pandas as pd
+from tabulate import tabulate
 from matplotlib import pyplot as plt
 import torch
 from torch import optim
@@ -11,7 +14,8 @@ from dlvc.datasets.cifar10 import  CIFAR10Dataset
 from dlvc.datasets.dataset import Subset
 
 seed = 42
-
+torch.manual_seed(seed)
+plt.style.use('ggplot')
 
 def cifar_load(transformer_train, transformer_val):
     train_data_opt = CIFAR10Dataset("data/cifar-10-python/cifar-10-batches-py", Subset.TRAINING, transformer_train)
@@ -76,6 +80,7 @@ def test_model(model, name, test_data_opt):
     correct_preds = {classname: 0 for classname in test_data_opt.classes}
     total_preds = {classname: 0 for classname in test_data_opt.classes}
 
+    start_time = time.time()
     # Evaluate model on test set
     with torch.no_grad():
         for images, labels in test_loader_opt:
@@ -90,6 +95,11 @@ def test_model(model, name, test_data_opt):
                     correct_preds[test_data_opt.classes[label]] += 1
                 total_preds[test_data_opt.classes[label]] += 1
             test_metric.update(output, labels)
+    end_time = time.time()
+
+    testing_time = end_time - start_time
+
+    print(f"Testing time: {testing_time} seconds\n")
 
     # Calculate average loss and accuracy
     test_loss /= len(test_loader_opt.dataset)
@@ -109,13 +119,14 @@ def test_model(model, name, test_data_opt):
     results.loc[results['model'] == name, 'test/loss'] = test_loss
     results.loc[results['model'] == name, 'test/mClassAcc'] = test_metric.per_class_accuracy()
     results.loc[results['model'] == name, 'test/mAcc'] = test_metric.accuracy()
+    results.loc[results['model'] == name, 'test/time'] = testing_time
 
     # Save results
     results.to_csv("results.csv", index=False)
     
     return model, test_metric
 
-def save_metrics(trainer, model_name):
+def save_metrics(trainer, model_name, training_time):
     # Save metrics
     metrics_train = trainer.metrics_train
     metrics_train = list(zip(*metrics_train))
@@ -135,7 +146,7 @@ def save_metrics(trainer, model_name):
         results = pd.read_csv("results.csv")
         results['model'] = results['model'].astype(str)
     except FileNotFoundError or pd.errors.EmptyDataError:
-        results = pd.DataFrame(columns=["model", "train/loss", "train/mClassAcc", "train/mAcc", "val/loss", "val/mClassAcc", "val/mAcc", "test/loss", "test/mClassAcc", "test/mAcc"])
+        results = pd.DataFrame(columns=["model", "train/loss", "train/mClassAcc", "train/mAcc", "val/loss", "val/mClassAcc", "val/mAcc", "test/loss", "test/mClassAcc", "test/mAcc", "test/time", "train/time"])
 
     # if model already exists in results, update the values
     if model_name in results['model'].values:
@@ -145,6 +156,7 @@ def save_metrics(trainer, model_name):
         results.loc[results['model'] == model_name, 'val/loss'] = str(loss_val)
         results.loc[results['model'] == model_name, 'val/mClassAcc'] = str(class_acc_val)
         results.loc[results['model'] == model_name, 'val/mAcc'] = str(acc_val)
+        results.loc[results['model'] == model_name, 'train/time'] = training_time
     else:
         # Add model to results with concat
         results = pd.concat([results, pd.DataFrame({
@@ -157,7 +169,9 @@ def save_metrics(trainer, model_name):
             "val/mAcc": [acc_val],
             "test/loss": [0],
             "test/mClassAcc": [0],
-            "test/mAcc": [0]
+            "test/mAcc": [0],
+            "train/time": [training_time],
+            "test/time": [0]
         })], ignore_index=True)
 
 
@@ -203,27 +217,17 @@ def plot_metrics(trainer, name):
     fig.suptitle("Metrics for model: " + name)
     fig.savefig("img/"+name + ".png")
 
-def plot_evaluation(df, name):
+def plot_evaluation(df):
     plt.style.use('ggplot')
     # Create a color dictionary to map models to colors
-    # models_cnn=("SCNN" "DCNN" "DNCNN" "SCNN_opt" "DCNN_opt" "DNCNN_opt")
-    # models_vit=("VTS" "VTD" "VTDR" "VTS_opt" "VTD_opt" "VTDR_opt")
-    # models_res=("RN18" "RN18_opt")
     colors = {
         'SCNN': 'green',
         'DCNN': 'red',
         'DNCNN': 'blue',
-        'SCNN_opt': 'green',
-        'DCNN_opt': 'red',
-        'DNCNN_opt': 'blue',
         'VTS': 'purple',
         'VTD': 'orange',
         'VTDR': 'brown',
-        'VTS_opt': 'purple',
-        'VTD_opt': 'orange',
-        'VTDR_opt': 'brown',
         'RN18': 'pink',
-        'RN18_opt': 'pink'
         }
 
     fig, ax = plt.subplots(1, 3, figsize=(19, 4))
@@ -274,7 +278,7 @@ def plot_evaluation(df, name):
     plt.tight_layout()
 
     # Add title
-    fig.suptitle(f'Metrics for {name} Models', fontsize=16)
+    fig.suptitle(f'Metrics for Models', fontsize=16)
 
     # move the title to the top and add some space
     plt.subplots_adjust(
@@ -297,4 +301,27 @@ def plot_evaluation(df, name):
         shadow=True, 
         ncol=1
     )
-    plt.savefig(f'img/evaluation_{name}.png', bbox_inches='tight')  # Save the figure with tight bounding box
+
+    plt.savefig(f'img/evaluation.png', bbox_inches='tight')  # Save the figure with tight bounding box
+    
+
+def comparison():
+    # Load results
+    results = pd.read_csv('results.csv')
+    plot_evaluation(results)
+    # get mean of val/mAcc, val/mClassAcc
+    results['val/mAcc'] = results['val/mAcc'].apply(lambda x: ast.literal_eval(x))
+    results['val/mClassAcc'] = results['val/mClassAcc'].apply(lambda x: ast.literal_eval(x))
+    results['val/mAcc'] = results['val/mAcc'].apply(lambda x: sum(x)/len(x))
+    results['val/mClassAcc'] = results['val/mClassAcc'].apply(lambda x: sum(x)/len(x))
+
+    # Prepare data for tabulate
+    table_data = []
+    for index, row in results.iterrows():
+        table_data.append([row['model'], f"{row['val/mAcc']:.4f}", f"{row['val/mClassAcc']:.4f}", f"{row['test/mAcc']:.4f}", f"{row['test/mClassAcc']:.4f}", f"{row['train/time']:.2f}", f"{row['test/time']:.2f}"])
+
+    # Print table with tabulate
+    print(tabulate(table_data, headers=["Model", "val ACC", "val PACC", "test ACC", "test PACC", "train time(s)", "test time(s)"], tablefmt="pipe"))
+
+# run the script for comparison
+# python -c 'from evaluation import comparison; comparison()'
