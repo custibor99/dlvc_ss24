@@ -70,7 +70,7 @@ class FeedForward(nn.Module):
 
 
 class VisionTransformerShallow(torch.nn.Module):
-    def __init__(self, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
+    def __init__(self, dropout_rate=0.5, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.n_layers = n_layers
@@ -86,8 +86,8 @@ class VisionTransformerShallow(torch.nn.Module):
         self.flatten = torch.nn.Flatten(start_dim=2, end_dim=3)
         dim = self.token_len * 3
 
-        self.att1 = Attention(dim, 4, 0.1)
-        self.ff1 = FeedForward(dim, 0.1)
+        self.att1 = Attention(dim, 4, dropout_rate)
+        self.ff1 = FeedForward(dim, dropout_rate)
 
         self.out = nn.Sequential(
             nn.Flatten(),
@@ -105,7 +105,7 @@ class VisionTransformerShallow(torch.nn.Module):
 
 
 class VisionTransformerDeep(torch.nn.Module):
-    def __init__(self, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
+    def __init__(self, dropout_rate=0.5, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.n_layers = n_layers
@@ -121,11 +121,11 @@ class VisionTransformerDeep(torch.nn.Module):
         self.flatten = torch.nn.Flatten(start_dim=2, end_dim=3)
         dim = self.token_len * 3
 
-        self.att1 = Attention(dim, 4, 0.1)
-        self.ff1 = FeedForward(dim, 0.1)
+        self.att1 = Attention(dim, 4, dropout_rate)
+        self.ff1 = FeedForward(dim, dropout_rate)
 
-        self.att2 = Attention(dim, 4, 0.1)
-        self.ff2 = FeedForward(dim, 0.1)
+        self.att2 = Attention(dim, 4, dropout_rate)
+        self.ff2 = FeedForward(dim, dropout_rate)
 
         self.out = nn.Sequential(
             nn.Flatten(),
@@ -145,7 +145,7 @@ class VisionTransformerDeep(torch.nn.Module):
 
 
 class VisionTransformerDeepResidual(torch.nn.Module):
-    def __init__(self, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
+    def __init__(self, dropout_rate=0.5, channels=3, n_layers=2, img_size=32, patch_size=16, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.channels = channels
         self.n_layers = n_layers
@@ -161,11 +161,11 @@ class VisionTransformerDeepResidual(torch.nn.Module):
         self.flatten = torch.nn.Flatten(start_dim=2, end_dim=3)
         dim = self.token_len * 3
 
-        self.att1 = Attention(dim, 4, 0.1)
-        self.ff1 = FeedForward(dim, 0.1)
+        self.att1 = Attention(dim, 4, dropout_rate)
+        self.ff1 = FeedForward(dim, dropout_rate)
 
-        self.att2 = Attention(dim, 4, 0.1)
-        self.ff2 = FeedForward(dim, 0.1)
+        self.att2 = Attention(dim, 4, dropout_rate)
+        self.ff2 = FeedForward(dim, dropout_rate)
 
         self.out = nn.Sequential(
             nn.Flatten(),
