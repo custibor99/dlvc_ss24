@@ -52,10 +52,10 @@ class CIFAR10Dataset(ClassificationDataset):
         self.labels = []
         
         files_to_process = self.training_files
-        if subset == Subset.VALIDATION:
+        if subset.name == Subset.VALIDATION.name:
             files_to_process = self.validation_files
             self.data = np.ones((10000,32,32,3))
-        elif subset == Subset.TEST:
+        elif subset.name == Subset.TEST.name:
             files_to_process = self.test_files
             self.data = np.ones((10000,32,32,3))
 
