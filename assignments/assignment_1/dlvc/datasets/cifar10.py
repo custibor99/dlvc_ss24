@@ -37,7 +37,6 @@ class CIFAR10Dataset(ClassificationDataset):
 
         if not os.path.isdir(fdir):
             raise ValueError(f"{fdir} is not a directory")
-        
 
         self.fdir = fdir
         self.subset = subset
