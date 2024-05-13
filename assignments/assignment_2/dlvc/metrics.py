@@ -58,7 +58,6 @@ class SegMetrics(PerformanceMeasure):
         and returns a tensor of shape [b,w,h,n_classes]
         label ranges should be from 0 to n_classes
         """
-        print(input.shape)
         b, w, h = input.shape
         exploded = torch.zeros([b, n_classes, w,h], dtype=torch.uint8)
         for i in range(0, n_classes):
@@ -82,23 +81,20 @@ class SegMetrics(PerformanceMeasure):
             b, c, h, w = prediction.shape
             prediction = prediction.argmax(dim=1).view(b,h,w)
             prediction = self._explode_tensor(prediction)
-            target = self._explode_tensor(target)
+            target = self._explode_tensor(target.view(b,w,h))
 
             tp = prediction.logical_and(target).sum(dim=2).sum(dim=2)
-            print(tp)
             n_labels = prediction.logical_or(target).sum(dim=2).sum(dim=2)
-            print(n_labels)
-            print(torch.mean(tp / n_labels).item())
-            self.score_sum += torch.mean(tp / n_labels).item()
+            self.score_sum += torch.mean(torch.nan_to_num(tp / n_labels)).item()
             self.n_batches += 1
-            
+            #print(tp, n_labels)
 
     def __str__(self):
         '''
         Return a string representation of the performance, mean IoU.
         e.g. "mIou: 0.54"
         '''
-        score = self.mIoU
+        score = self.mIoU()
         return f"mIou: {score}"
           
 
@@ -110,6 +106,5 @@ class SegMetrics(PerformanceMeasure):
         If the denominator for IoU calculation for one of the classes is 0,
         use 0 as IoU for this class.
         '''
-        print(self.score_sum, self.n_batches)
-        score = 0.0 if self.n_batchesa == 0 else  self.score_sum / self.n_batches
+        score = 0.0 if self.n_batches == 0 else self.score_sum / self.n_batches
         return round(score, 2)

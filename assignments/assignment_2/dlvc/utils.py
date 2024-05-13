@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import torch
 
 def display_images_and_masks(dataset, indexes):
     """Display images and segmentation masks next to each other.
@@ -17,3 +18,20 @@ def display_images_and_masks(dataset, indexes):
         plt.imshow(mask.permute(1,2,0))
         plt.axis("off")
     # end for
+        
+
+class AddTransform(torch.nn.Module):
+    def forward(self, img):
+        # Do some transformations
+        return img - 1
+    
+
+class Resnet50Wrapper(torch.nn.Module):
+    def __init__(self, model):
+        super(Resnet50Wrapper, self).__init__()
+        self.model = model
+        self.model.classifier[4] = torch.nn.Conv2d(512, 3, kernel_size=(1,1), stride=(1,1))
+
+    def forward(self, x):
+        res = self.model(x)
+        return res["out"]

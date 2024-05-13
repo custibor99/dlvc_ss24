@@ -4,7 +4,9 @@ from typing import  Tuple
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from tqdm import tqdm
+import numpy as np
 from torch.utils.data import DataLoader
+
 
 #from dlvc.wandb_logger import WandBLogger
 
@@ -98,6 +100,8 @@ class ImgSemSegTrainer(BaseTrainer):
         self.metrics_val = []
         self.metrics_train = []
         self.best_metric = 0.0
+        self.train_epoch_steps = np.ceil(len(train_data) / batch_size)
+        self.val_epoch_steps = np.ceil(len(train_data) / batch_size)
 
     
         ##TODO implement
@@ -117,18 +121,19 @@ class ImgSemSegTrainer(BaseTrainer):
         # recycle your code from assignment 1 or use/adapt reference implementation
         self.train_metric.reset()
         self.model.train()
-        for batch_idx, (data, target) in enumerate(self.train_loader):
+        for batch_idx, (data, target) in tqdm(enumerate(self.train_loader),desc="train epoch", total=self.train_epoch_steps):
+            b, c, h, w = target.shape
             data, target = data.to(self.device), target.to(self.device)
             self.optimizer.zero_grad()
             output = self.model(data)
-            self.train_metric.update(output, target)
-            loss = self.loss_fn(output, target)
+            loss = self.loss_fn(output,target.view(b,h,w))
+            self.train_metric.update(output,target.view(b,h,w))
             loss.backward()
             self.optimizer.step()
         self.lr_scheduler.step()  # adjust learning rate every 5 batches
-        loss, accuracy, class_accuracy = loss.item(), self.train_metric.accuracy(), self.train_metric.per_class_accuracy()
-        print(f"\nTRAIN, EPOCH: {epoch_idx} \nLoss: {loss}\nAccuracy: {accuracy}\nClass Accuracy: {class_accuracy}")
-        return loss, accuracy, class_accuracy
+        loss, accuracy = loss.item(), self.train_metric.mIoU(),
+        print(f"\nTRAIN, EPOCH: {epoch_idx} \nLoss: {loss}\mIoU: {accuracy}")
+        return loss, accuracy
 
 
     def _val_epoch(self, epoch_idx:int) -> Tuple[float, float]:
@@ -144,16 +149,16 @@ class ImgSemSegTrainer(BaseTrainer):
         self.model.eval()
         self.val_metric.reset()
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.validation_loader):
+            for batch_idx, (data, target) in tqdm(enumerate(self.validation_loader), desc="val epoch", total=self.val_epoch_steps, ):
+                b, c, h, w = target.shape
                 data, target = data.to(self.device), target.to(self.device)
                 output = self.model(data)
-                self.val_metric.update(output, target)
-                loss = self.loss_fn(output, target).item()
-        accuracy = self.val_metric.accuracy()
-        class_accuracy = self.val_metric.per_class_accuracy()
+                self.val_metric.update(output, target.view(b,h,w))
+                loss = self.loss_fn(output,target.view(b,h,w)).item()
+        accuracy = self.val_metric.mIoU()
         print(
-            f"\nVALIDATION, EPOCH: {epoch_idx} \nLoss: {loss}\nAccuracy: {accuracy}\nClass Accuracy: {class_accuracy}")
-        return loss, accuracy, class_accuracy
+            f"\nVALIDATION, EPOCH: {epoch_idx} \nLoss: {loss}\mIoU: {accuracy}")
+        return loss, accuracy
 
     def train(self) -> None:
         """
@@ -171,9 +176,10 @@ class ImgSemSegTrainer(BaseTrainer):
             if i % self.val_frequency == 0:
                 eval_metrics = self._val_epoch(i)
                 self.metrics_val.append(eval_metrics)
-                if eval_metrics[2] > self.best_per_class_accuracy:
+                if eval_metrics[1] > self.best_metric:
                     print("New metric is higher. Saving new best model")
-                    torch.save(self.model.state_dict(), self.training_save_dir)
+                    #torch.save(self.model.state_dict(), self.training_save_dir)
+                    self.best_metric = eval_metrics[1]
 
                 
 
