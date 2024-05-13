@@ -4,6 +4,7 @@ from typing import  Tuple
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from tqdm import tqdm
+from torch.utils.data import DataLoader
 
 #from dlvc.wandb_logger import WandBLogger
 
@@ -54,6 +55,7 @@ class ImgSemSegTrainer(BaseTrainer):
                  training_save_dir: Path,
                  batch_size: int = 4,
                  val_frequency: int = 5):
+        
         '''
         Args and Kwargs:
             model (nn.Module): Deep Network to train
@@ -77,7 +79,25 @@ class ImgSemSegTrainer(BaseTrainer):
             - Optionally use weights & biases for tracking metrics and loss: initializer W&B logger
 
         '''
-        
+        self.model = model
+        self.optimizer = optimizer
+        self.loss_fn = loss_fn
+        self.lr_scheduler = lr_scheduler
+        self.train_metric = train_metric
+        self.val_metric = val_metric
+        self.device = device
+        self.num_epochs = num_epochs
+        self.training_save_dir = training_save_dir
+        self.batch_size = batch_size
+        self.val_frequency = val_frequency
+        self.train_data, self.val_data = train_data, val_data
+
+        self.train_loader = DataLoader(train_data, batch_size=self.batch_size, shuffle=True)
+        self.validation_loader = DataLoader(val_data, batch_size=self.batch_size, shuffle=True)
+
+        self.metrics_val = []
+        self.metrics_train = []
+        self.best_metric = 0.0
 
     
         ##TODO implement
@@ -95,7 +115,20 @@ class ImgSemSegTrainer(BaseTrainer):
         """
         ##TODO implement
         # recycle your code from assignment 1 or use/adapt reference implementation
-        pass
+        self.train_metric.reset()
+        self.model.train()
+        for batch_idx, (data, target) in enumerate(self.train_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            self.optimizer.zero_grad()
+            output = self.model(data)
+            self.train_metric.update(output, target)
+            loss = self.loss_fn(output, target)
+            loss.backward()
+            self.optimizer.step()
+        self.lr_scheduler.step()  # adjust learning rate every 5 batches
+        loss, accuracy, class_accuracy = loss.item(), self.train_metric.accuracy(), self.train_metric.per_class_accuracy()
+        print(f"\nTRAIN, EPOCH: {epoch_idx} \nLoss: {loss}\nAccuracy: {accuracy}\nClass Accuracy: {class_accuracy}")
+        return loss, accuracy, class_accuracy
 
 
     def _val_epoch(self, epoch_idx:int) -> Tuple[float, float]:
@@ -108,7 +141,19 @@ class ImgSemSegTrainer(BaseTrainer):
         """
         ##TODO implement
         # recycle your code from assignment 1 or use/adapt reference implementation
-        pass
+        self.model.eval()
+        self.val_metric.reset()
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(self.validation_loader):
+                data, target = data.to(self.device), target.to(self.device)
+                output = self.model(data)
+                self.val_metric.update(output, target)
+                loss = self.loss_fn(output, target).item()
+        accuracy = self.val_metric.accuracy()
+        class_accuracy = self.val_metric.per_class_accuracy()
+        print(
+            f"\nVALIDATION, EPOCH: {epoch_idx} \nLoss: {loss}\nAccuracy: {accuracy}\nClass Accuracy: {class_accuracy}")
+        return loss, accuracy, class_accuracy
 
     def train(self) -> None:
         """
@@ -120,7 +165,15 @@ class ImgSemSegTrainer(BaseTrainer):
         """
         ##TODO implement
         # recycle your code from assignment 1 or use/adapt reference implementation
-        pass
+        for i in range(0, self.num_epochs):
+            train_metrics = self._train_epoch(i)
+            self.metrics_train.append(train_metrics)
+            if i % self.val_frequency == 0:
+                eval_metrics = self._val_epoch(i)
+                self.metrics_val.append(eval_metrics)
+                if eval_metrics[2] > self.best_per_class_accuracy:
+                    print("New metric is higher. Saving new best model")
+                    torch.save(self.model.state_dict(), self.training_save_dir)
 
                 
 

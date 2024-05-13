@@ -39,6 +39,9 @@ class SegMetrics(PerformanceMeasure):
 
     def __init__(self, classes):
         self.classes = classes
+        self.n_classes = len(classes)
+        self.score_sum = 0.0
+        self.n_datapoints = 0
 
         self.reset()
 
@@ -46,10 +49,23 @@ class SegMetrics(PerformanceMeasure):
         '''
         Resets the internal state.
         '''
-        ## TODO implement
-        pass
+        self.score_sum = 0.0
+        self.n_batches = 0
 
-
+    def _explode_tensor(self,input, n_classes = 3):
+        """
+        expects a tensor of shape [b,w,h]
+        and returns a tensor of shape [b,w,h,n_classes]
+        label ranges should be from 0 to n_classes
+        """
+        print(input.shape)
+        b, w, h = input.shape
+        exploded = torch.zeros([b, n_classes, w,h], dtype=torch.uint8)
+        for i in range(0, n_classes):
+            mask = input.view(-1,w,h) == i
+            mask = mask.view([b, w, h])
+            exploded[:,i,:,:] = mask            
+        return exploded
 
     def update(self, prediction: torch.Tensor, 
                target: torch.Tensor) -> None:
@@ -62,16 +78,28 @@ class SegMetrics(PerformanceMeasure):
         '''
 
        ##TODO implement
-        pass
-   
+        with torch.no_grad():
+            b, c, h, w = prediction.shape
+            prediction = prediction.argmax(dim=1).view(b,h,w)
+            prediction = self._explode_tensor(prediction)
+            target = self._explode_tensor(target)
+
+            tp = prediction.logical_and(target).sum(dim=2).sum(dim=2)
+            print(tp)
+            n_labels = prediction.logical_or(target).sum(dim=2).sum(dim=2)
+            print(n_labels)
+            print(torch.mean(tp / n_labels).item())
+            self.score_sum += torch.mean(tp / n_labels).item()
+            self.n_batches += 1
+            
 
     def __str__(self):
         '''
         Return a string representation of the performance, mean IoU.
         e.g. "mIou: 0.54"
         '''
-        ##TODO implement
-        pass
+        score = self.mIoU
+        return f"mIou: {score}"
           
 
     
@@ -82,10 +110,6 @@ class SegMetrics(PerformanceMeasure):
         If the denominator for IoU calculation for one of the classes is 0,
         use 0 as IoU for this class.
         '''
-        ##TODO implement
-        pass
-
-
-
-
-
+        print(self.score_sum, self.n_batches)
+        score = 0.0 if self.n_batchesa == 0 else  self.score_sum / self.n_batches
+        return round(score, 2)
