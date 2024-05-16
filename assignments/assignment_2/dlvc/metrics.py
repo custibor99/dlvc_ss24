@@ -76,7 +76,15 @@ class SegMetrics(PerformanceMeasure):
         Make sure to not include pixels of value 255 in the calculation since those are to be ignored. 
         '''
 
-       ##TODO implement
+        if len(prediction.shape) != 4:
+            raise ValueError("Prediction expected to have 4 dimensions (b, c, h, w)")
+        if len(target.shape) != 3:
+            raise ValueError("Target expected to have 3 dimensions (b, h, w)")
+        if target.shape[1:] != prediction.shape[2:]:
+            raise ValueError("Target and prediction shape mismatch")
+        if torch.min(target) <0 or torch.max(target) >= self.n_classes and torch.max(target) != 255 :
+            raise ValueError("Invalid value for class labels")
+
         with torch.no_grad():
             b, c, h, w = prediction.shape
             prediction = prediction.argmax(dim=1).view(b,h,w)
