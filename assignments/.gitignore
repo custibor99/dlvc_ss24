@@ -6,3 +6,6 @@ __pycache__
 
 # latex
 latex/
+
+# data files
+data/
